@@ -62,6 +62,48 @@
     movie = Movie.objects.all().filter(name=name).first()
         # Now movie is not query set it is an object if i want to pass to JsonResponse i need to make it as dictionary
     data = {"name":movie.name, "description":movie.description, "active":movie.active}
+## Serialization
+### Why we need serialization
+    To convert complex datastructures to python native and then to json
+    Earlier we used to convert querysets into dictionaries and later i need to send it as json
+    Instead of the manual work we can use serializer that reduces our work
+    ![image](https://github.com/user-attachments/assets/c819d8b7-b796-4037-9440-88d0095bd869)
+### Types of Serializers and views
+    Serializers -
+        serializers.Serializer
+        serializers.ModelSerializer
+    views - 
+        function views
+        class based views
+            Generic Views
+            Mixins
+            Concrete View Classes
+            ViewSets
+#### serializers.Serializer
+    from rest_framework import serializers
+
+    class MovieSerializer(serializers.Serializer):
+        id = serializers.IntegerField(read_only=True)
+        name = serializers.CharField()
+        description = serializers.CharField()
+        active = serializers.BooleanField()
+    How to use ?
+    in the views file add this
+    Code:
+        class Movies(APIView):
+            def get(self, request, name=None):
+                if name is not None:
+                    movies = Movie.objects.all().filter(name=name).first()
+                    serialized_movies = MovieSerializer(movies) # Passing complex data like queryset here iam passing object
+                    if serialized_movies.is_valid:
+                        return Response(serialized_movies.data) # Directly passing the value
+        
+                movies = Movie.objects.all()
+                serialized_movies = MovieSerializer(movies, many=True) ## Dont forgot to add this for multiple values of the serializers
+                return Response({"movies": serialized_movies.data})
+
+
+
 
     
     
