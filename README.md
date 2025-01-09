@@ -317,11 +317,18 @@
             first_roof.get("pitch")
             For optimization we can use this
             first_roof = DesignMaster.objects.prefetch_related("roof_details").filter(design_number="D-093").first().roof_details.values().first() #roof_details is the key that connects the RoofMaster table
-### Q queries
+### Q (Complex queries)
     Q) Queries
+        Since if we use .filter .filter that only performs only and operator, if i want to perform various filters i can use complex queries.
+        from django.db.models import Q
         Project.objects.filter(Q(project_number="D-0020") | Q(project_number="D-0021") & Q(is_deleted=True)).values()
         Project.objects.filter(Q(project_number="D-0020") | (Q(project_number="D-0021") & Q(is_deleted=True))).values() 
         Project.objects.filter((Q(project_number="D-0020") | Q(project_number="D-0021")) & Q(is_deleted=True)).values()
+    Q) F Expressions
+        F expressions is the encapsulated sql of the database field.
+        Using F expressions we can manuplate data in database
+        
+    
             
         
             
