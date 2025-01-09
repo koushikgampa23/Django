@@ -256,9 +256,60 @@
 ## Mixins
     Mixins are very popular to perform very common tasks.
     All we need is to provide a basic settings and we can use common methods and perform all this common tasks very quickly
-    
 
+## ORM in django
+    Suppose i have a DesignMaster table that has project has foreign key relationship and RoofDesignMap is the many to many relation.
+    Models for both the tables:
+        class DesignMaster(BaseModel):
+            design_number = models.CharField(max_length=50)
+            project = models.ForeignKey(Project, on_delete=models.CASCADE)
+            version = models.FloatField(null=True)
+            is_completed = models.BooleanField(default=False, null=False)
+            is_default = models.BooleanField(default=False, null=False)
+            roof_details = models.ManyToManyField(
+                "RoofMaster", through=RoofDesignMap, null=True
+            )
+            location = models.ForeignKey(
+                Location, on_delete=models.CASCADE, related_name="location", null=True
+            )
+            is_deleted = models.BooleanField(default=False)
+        
+            class meta:
+                db_table = "design_master"
 
+        class Project(BaseModel):
+            project_number = models.CharField(max_length=10, null=False, unique=True)
+            project_name = models.CharField(max_length=50, null=False)
+            is_deleted = models.BooleanField(default=False, null=False)
+            design_status = models.BooleanField(default=True, null=False)
+            home_owner = models.ForeignKey(Customer, on_delete=models.CASCADE)
+            default_design = models.ForeignKey(
+                "DesignMaster",
+                on_delete=models.CASCADE,
+                null=True,
+                related_name="default_design",
+            )
+        
+            class Meta:
+                db_table = "project_master"
+
+    Queries with foreign Key relations:
+        Q) Search based on project_name and return entire Design master row?
+            DesignMaster.objects.filter(project__project_name="D-0001_JohnDoe878").values().first()
+        Q) Filter using project_name in DesignMaster and return project data from the DesignMaster? (simply get the project from the desingMaster table)
+            project_obj = DesignMaster.objects.select_related("project").filter(project__project_name="D-0001_JohnDoe878").first().project #Got project object
+            print(project_obj.project_name)
+        Q) Given design_number that is present in the DesignMaster retrive the project_obj?
+            project_obj = DesignMaster.objects.filter(design_number="D-001").first().project
+            project_obj.project_name
+            Fail Cases:
+            project_obj = DesignMaster.objects.filter(design_number="D-001").values().first().project #projectObj is only avaliable when the it is queryset here by using .values i have flatted the data into dictonaries now the projectObj is not avaliable
+        Q) Extention to the above question get both designMaster object and projectObj
+            design_obj = DesignMaster.objects.filter(design_number="D-001").first() #The only constraint is dont flatten it using values
+            project_obj = design_obj.project
+        
+        
+            
 
 
     
