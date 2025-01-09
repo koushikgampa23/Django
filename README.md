@@ -307,7 +307,17 @@
         Q) Extention to the above question get both designMaster object and projectObj
             design_obj = DesignMaster.objects.filter(design_number="D-001").first() #The only constraint is dont flatten it using values
             project_obj = design_obj.project
-        
+    Queries with many to many relationship:
+        Q) Given DesignMaster and RoofMaster they are both having many to many relationship
+        Q) Given Design_number find the all the associated roofsMaster rows?
+            DesignMaster.objects.filter(design_number="D-093").first().roof_details.values() #This contains all the roofs associated in the form of list of dictnaries
+            DesignMaster.objects.filter(design_number="D-093").first().roof_details.values_list("id") #This contains all the ids
+        Q) extention to the above question, Give the pitch value of the first roof?
+            first_roof = DesignMaster.objects.filter(design_number="D-093").first().roof_details.values().first()
+            first_roof.get("pitch")
+            For optimization we can use this
+            first_roof = DesignMaster.objects.prefetch_related("roof_details").filter(design_number="D-093").first().roof_details.values().first() #roof_details is the key that connects the RoofMaster table
+            
         
             
 
