@@ -327,6 +327,17 @@
     Q) F Expressions
         F expressions is the encapsulated sql of the database field.
         Using F expressions we can manuplate data in database
+        Update multiple data at once
+        Query:
+            from django.db.models import F
+            RoofMaster.objects.update(pitch=F("pitch")*10)
+        Update Individual Row:
+            roof = RoofMaster.objects.all().first()
+            roof.pitch = F("pitch") + 2
+            roof.save()
+            RoofMaster.objects.all().values()
+            
+
         
     
             
