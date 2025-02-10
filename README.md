@@ -1,6 +1,51 @@
 # Django
 
 ## Introduction
+### How Django application works
+    When ever an http request has been passed to the url. The request has been passed to appropriate view. The view will read or write data along with template it is displayed to user.
+    URL - Http request uses URL Mapper to send data to corresponding view.
+    View - A view receives Http request, access data via models and returns http request.
+    Modals - Modals are python objects defining applications data structures. They also provide create, edit and query records in the database.
+    Template - Templates define the structure of a file layout to represent data in the web page.
+    An application aka app is the functional unit of the project. To create a app within the project we use the command
+    python manage.py startapp poll
+    this will create a application named poll with the skeleton folder structure to represent all the framework elements.
+    Django clients - facebook, instagram, bitbucket, pinterest.
+### How django urls works
+    Django follows the following algorithm to serve any user request.
+        Determine the root URLconf module to use.
+        Load the Python module urls and look for the variable urlpatterns.
+        Check each URL pattern in order, and stop at the first pattern match.
+    Based on the pattern match, call the corresponding view with the following arguments:
+        HttpRequest instance
+        Named groups or positional arguments
+        Keyword arguments
+    Error handling views are called if no URL pattern matches, or if an exception is raised.
+### URL patterns
+    In the urlpattern each pattern is written using path or re_path functions.
+    angled patterns are used to capture a value from the url
+        apps/<int:age>/
+    Captured values can be converted to string or other datatypes like int or slug.
+    Upon a url match with the corresponding view function is called to action.
+    apps/2018/, views.2018_view
+    apps/<int:year>/, views_second_view
+    2018_view is the first matched view this will be called.
+    Convert this url to pattern match url
+        apps/2018/02/hello world/
+        apps/<int:year>/<int:month>/<slug:slug>/
+    consider a user request app/201888/ technically it is wrong.
+    we can use python regular expressions using re_path function
+        syntax:
+            (?P<name>Pattern)
+            (?P<year>[0-9]{4})
+            Use case:
+                article/(?P<year>[0-9]{4})/
+                only article/2018/ valid article/201888/ invalid
+    Type converstions are not allowed all the values are sent as the strings
+### Reversing the url
+    Views using a custom Python function reverse
+    Templates using the url template tag
+    Model instances using get_absolute_url method.
 ### API - Application Programming Interface
     It is a set of protocals and tools that allows different applications to communicate each other. Apis enables us to create a complex applications by leveraging existing functionalities.
     Private APIs - within org, Partnered - Business, Public - 3rd party developer
