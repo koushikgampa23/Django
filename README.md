@@ -464,6 +464,37 @@
             roof.pitch = F("pitch") + 2
             roof.save()
             RoofMaster.objects.all().values()
+
+## ModelViewSet
+    ModelViewSet simplifiles the boiler plate code by providing all the CRUD operations in it and it handles the routing as well
+    we can override the any method using list, create, retrive, destroy, partial_update
+    Step1) Create a serializer
+    In the serializers.py file add this
+        class UserSerializer(ModelSerializer):
+            class Meta:
+                model = User
+                fields = ["username", "email", "id"]
+    Step2) Create a view and add this
+        ModelViewSet View needs two parameters one is queryset and serializer_class, permission_classes and authentication_classes are optional
+        
+        class UserData(ModelViewSet):
+            queryset = User.objects.all()
+            serializer_class = UserSerializer
+            permission_classes = []
+            authentication_classes = []
+    Step3) Add this in the Urls
+        from django.routers import DefaultRouter
+        urlpatterns = []
+
+        router = DefaultRouter()
+        router.register("userdata")
+        urlpatterns+=router.urls
+    Step4) Check the urls in the postman
+        Get - http://localhost:8000/users/userdata/
+        individual Data - http://localhost:8000/users/userdata/1/
+        post - " , body needed
+        put - http://localhost:8000/users/userdata/1/, body needed
+        delete - http://localhost:8000/users/userdata/1/
             
 
         
