@@ -107,6 +107,89 @@
     movie = Movie.objects.all().filter(name=name).first()
         # Now movie is not query set it is an object if i want to pass to JsonResponse i need to make it as dictionary
     data = {"name":movie.name, "description":movie.description, "active":movie.active}
+# Sample CRUD operation on user table with serializers
+    code in the view file
+    class UserData(APIView):
+        permission_classes = []
+        authentication_classes = []
+    
+        def get(self, request):
+            user_data = User.objects.all().values()
+            return Response({"message": user_data})
+    
+        def post(self, request):
+            username = request.data.get("username", None)
+            password = request.data.get("password", None)
+            name = request.data.get("name", None)
+            email = request.data.get("email", None)
+    
+            if not username:
+                return Response({"error": "Please enter username"}, status=400)
+            if not password:
+                return Response({"error": "please enter password field"}, status=400)
+    
+            user_obj = User.objects.create(username=username, name=name, email=email)
+            user_obj.set_password(password)
+            user_obj.save()
+    
+            return Response({"message": "Created User"}, status=201)
+    
+        def put(self, request):
+            username = request.data.get("username", None)
+            password = request.data.get("password", None)
+            name = request.data.get("name", None)
+            email = request.data.get("email", None)
+    
+            if not username:
+                return Response({"error": "Please enter username"}, status=400)
+            if not password:
+                return Response({"error": "please enter password field"}, status=400)
+    
+            try:
+                user_obj = User.objects.get(username=username)
+                user_obj.username = username
+                user_obj.name = name
+                user_obj.email = email
+                user_obj.set_password(password)
+                user_obj.save()
+            except User.DoesNotExist:
+                return Response({"message": "User not found"}, status=404)
+    
+            return Response({"message": "Updated user successfully"}, status=200)
+    
+        def delete(self, request, username=None):
+            if not username:
+                return Response({"error": "please pass username from params"}, status=400)
+            user_obj = User.objects.filter(username=username).first()
+            if not user_obj:
+                return Response({"error": "User not found"}, status=404)
+            user_obj.delete()
+    
+            return Response({"message": "deleted successfully"}, status=200)
+    
+    
+    @api_view(["GET"])
+    @authentication_classes([])
+    @permission_classes([])
+    def login(request):
+    
+        username = request.GET.get("username", None)
+        password = request.GET.get("password", None)
+    
+        if not username or not password:
+            return Response({"error": "Enter username and password"})
+    
+        user_obj = User.objects.filter(username=username).first()
+        if not user_obj:
+            return Response({"error": "Username doesnot exist"})
+        user_obj.check_password(password)
+    
+        return Response({"message": "Logged in successfully"}, status=200)
+    Code in the url folder:
+        path("userdata/", UserData.as_view(), name="userdetails"),
+        path("userdata/<str:username>/", UserData.as_view(), name="individual_userdetails"),
+
+    
 ## Serialization
 ### Why we need serialization
     To convert complex datastructures to python native and then to json
