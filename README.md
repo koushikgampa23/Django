@@ -689,6 +689,48 @@
         router = DefaultRouter()
         router.register("userdata", viewset=UserData)
         urlpatterns += router.urls
+## Swagger Documentation drf-yasg
+    Step1) Settings.py file
+        In the installed apps add this "drf_yasg"
+        Add this at the end of settings.py file
+        SWAGGER_SETTINGS = {
+            "SECURITY_DEFINITIONS": {
+                "Bearer": {
+                    "type": "apiKey",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT",
+                    "in": "header",
+                    "name": "Authorization",
+                },
+            },
+            "USE_SESSION_AUTH": False,
+        }
+    Step2) In the url add this
+        from .swagger import schema_view
+        path(
+            "swagger/",
+            schema_view.with_ui("swagger", cache_timeout=0),
+            name="schema-swagger-ui",
+        ),
+    Step3) Create a file swagger add this
+        from rest_framework import permissions
+        from drf_yasg.views import get_schema_view
+        from drf_yasg import openapi
+        
+        schema_view = get_schema_view(
+            openapi.Info(
+                title="My API",
+                default_version="v1",
+                description="Test description",
+                terms_of_service="https://www.google.com/policies/terms/",
+                contact=openapi.Contact(email="contact@myapi.local"),
+                license=openapi.License(name="BSD License"),
+            ),
+            public=True,
+            permission_classes=(permissions.AllowAny,),
+            authentication_classes=None,
+        )
+
 
         
            
