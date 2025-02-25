@@ -730,6 +730,78 @@
             permission_classes=(permissions.AllowAny,),
             authentication_classes=None,
         )
+## Create custom commands in django
+    **Using Arguments**
+    Step1) create a app
+        python manage.py startapp
+    Step2) Inside this api folder create a management folder inside create commands folder then create a file createuser
+        Add this in createuser.py
+        from demo.users.models import User
+        from django.core.exceptions import ValidationError
+        from django.core.management import BaseCommand
+        
+        
+        class Command(BaseCommand):
+            help = "Create a normal user"
+        
+            def add_arguments(self, parser):
+                parser.add_argument("username", type=str, help="Enter username")
+                parser.add_argument("email", type=str, help="Enter useremail")
+                parser.add_argument("password", type=str, help="enter password")
+        
+            def handle(self, *args, **kwargs):
+                username = kwargs["username"]
+                password = kwargs["password"]
+                email = kwargs["email"]
+        
+                try:
+                    user = User.objects.create(username=username, email=email)
+                    user.set_password(password)
+                    user.save()
+                    self.stdout.write(self.style.SUCCESS(f"{user.username} Created!"))
+                except Exception as e:
+                    self.stdout.write(self.style.ERROR(f"Error Occured:{str(e)}"))
+        Step3) Testing in command line
+            python manage.py createuser --help
+            python manage.py createuser test test@gmail.com test
+            
+    **Using Prompts**
+    Add this code in createuserprompt.py
+    from demo.users.models import User
+    from django.core.exceptions import ValidationError
+    from django.core.management import BaseCommand
+    
+    
+    class Command(BaseCommand):
+        help = "Create a normal user using prompts"
+    
+        def handle(self, *args, **kwargs):
+            username = input("Username:")
+            email = input("Email: ")
+            password = input("password: ")
+            retype_password = input("retype_password: ")
+    
+            if password != retype_password:
+                self.stdout.write(self.style.ERROR("Passwor mismatch"))
+                return
+    
+            try:
+                user = User.objects.create(username=username, email=email)
+                user.set_password(password)
+                user.save()
+                self.stdout.write(self.style.SUCCESS(f"{user.username} Created!"))
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Error Occured:{str(e)}"))
+    Testing:
+        python manage.py createuserprompt
+        Username:test31
+        Email: test31@gmail.com
+        password: test
+        retype_password: test
+        test31 Created!
+
+
+
 
 
         
