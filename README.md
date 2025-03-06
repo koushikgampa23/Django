@@ -43,12 +43,14 @@
         print(add(4.5, 5))
         
 ### Annotations
+    # Annotations are used to get warnings in the code editior and code suggestions
+    # Annotations doesnot manuplate the code
     class Car:
         def __init__(self, name: str, price: int) -> None:
             self.name = name
             self.price = price
     
-        def get_info(self) -> int:
+        def get_info(self) -> None:
             print(f"{self.name} is at {self.price}")
         
         def __str__(self):
