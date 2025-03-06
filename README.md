@@ -42,6 +42,22 @@
             
         print(add(4.5, 5))
         
+### Annotations
+    class Car:
+        def __init__(self, name: str, price: int) -> None:
+            self.name = name
+            self.price = price
+    
+        def get_info(self) -> int:
+            print(f"{self.name} is at {self.price}")
+        
+        def __str__(self):
+            return f"{self.name}"
+    
+    
+    car_obj: Car = Car("abc", 1244)
+    car_obj.get_info()
+    print(car_obj)
 
 ## Introduction
 ### How Django application works
