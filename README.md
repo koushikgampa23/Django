@@ -3,6 +3,12 @@
 ## Basics of python
 ### Decorators
 #### Function Decorators
+    Step1) write a function to accept a function as argument
+    Step2) write a function adding extra features in it
+    Step3) return the current function that we had created
+    Step4) now add @function name that we had created 
+    Step5)execute the funtion normally
+
     Given two numbers, convert them into integer type and return the sum
     Code:
         def convert_ints(add):
@@ -18,6 +24,24 @@
         
         c = add(4.5, 5)
         print(c)
+        # Decorator with arguments
+        def convert_args(method): # Takes decorator arguments
+            def wrapper(add): # Takes function has argument
+                def inner_function(a,b): # Arguments of the function
+                    if(method=="int"):
+                        a = int(a)
+                        b = int(b)
+                        return add(a,b)
+                return inner_function
+            return wrapper
+        
+        
+        @convert_args("int")
+        def add(a,b):
+            return a+b
+            
+        print(add(4.5, 5))
+        
 
 ## Introduction
 ### How Django application works
