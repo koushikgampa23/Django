@@ -1,5 +1,24 @@
 # Django
 
+## Basics of python
+### Decorators
+#### Function Decorators
+    Given two numbers, convert them into integer type and return the sum
+    Code:
+        def convert_ints(add):
+            def inner_function(a,b): # It is required since decorator needs function
+                a = int(a)
+                b = int(b)
+                return add(a,b) # Required since i need add is returing
+            return inner_function
+        
+        @convert_ints
+        def add(a,b):
+            return a+b
+        
+        c = add(4.5, 5)
+        print(c)
+
 ## Introduction
 ### How Django application works
     When ever an http request has been passed to the url. The request has been passed to appropriate view. The view will read or write data along with template it is displayed to user.
