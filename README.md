@@ -544,18 +544,41 @@
             permission_classes = []
             authentication_classes = []
     Step3) Add this in the Urls
-        from django.routers import DefaultRouter
-        urlpatterns = []
+        First way
+            from django.routers import DefaultRouter
+            urlpatterns = []
 
-        router = DefaultRouter()
-        router.register("userdata")
-        urlpatterns+=router.urls
+            router = DefaultRouter()
+            router.register("userdata")
+            urlpatterns+=router.urls
+        The other way
+            from django.urls import path, include
+            from .views import IndustryView
+            from rest_framework.routers import DefaultRouter
+
+            router = DefaultRouter()
+            router.register("", IndustryView, basename="industry")
+
+            urlpatterns = [
+                path("industries/", include(router.urls)),
+            ]
+
     Step4) Check the urls in the postman
         Get - http://localhost:8000/users/userdata/
         individual Data - http://localhost:8000/users/userdata/1/
         post - " , body needed
         put - http://localhost:8000/users/userdata/1/, body needed
         delete - http://localhost:8000/users/userdata/1/
+    Additional Url like: Get users based on Industry id
+        from rest_framework.decorators import action
+
+        @action(detail=True, methods=["get"])
+        def users(self, request, pk=None):
+            industry = self.get_object()
+            users = User.objects.filter(id=industry.owner_id)
+            serializers = UserSerializer(users, many=True)
+            return Response(serializers.data)
+            
 ## jwt Custom Authentication
     Steps1)
         Set Cookie in login
