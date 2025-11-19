@@ -883,7 +883,78 @@
         password: test
         retype_password: test
         test31 Created!
+### app_name
+    we use app_name and namespace for making URL resolution (reverse lookups) robust and collision-free, especially in large or modular projects with multiple apps.
+    to enable reliable, collision-free URL reversing and lookup in a scalable Django project.
+    reverse(devices:list) #this works we used namespace and app_name
+    app_name becomes mandatory when you explictly use namespace in the urls
+    namespace is optional if we define app_name
+    this works in both Django's reverse function (Python code) and {% url %} template tags, because Django automatically applies the app_name as the namespace for those URLs.
+    Use application namespace (app_name) when you want unique naming for URLs in an app, and use instance namespace (namespace argument in include()) when you need to include the same app multiple times, with distinct URL sets, in one Django project.
+    Note: namespace doesnot effect the url structure even if i use or not, i dont see any change in url string
+    Consider devices is the app
+    in the main urls.py file
+    1. using namespace in the main urls.py file
+        path("devices/",include("devices.urls", namespace="devices")) 
+        path("devices/",include("devices.urls", name="devices")) # namespace is newer version of django, older version is name
+    2. Since iam using namespace or name it is mandatory for me to use app_name
+        in the devices.urls 
+        app_name = "devices"
+        urlpatterns = [
+            path("list/", DeviceList.as_view(), name="list"),
+        ]
+    I get this error message if i dont use the app_name in the app
+        django.core.exceptions.ImproperlyConfigured:
+        Specifying a namespace in include() without providing an app_name is not supported.
+    Why do we need namespace mandatory and app_name mandatory
+    if i want to use this app multiple times
+    urls.py 
+        urlpatterns = [path[("devices/", include("devices.urls", namespace="devices")),
+                       path[("music/", include("devices.urls", namespace="music-devices"))]
+    in the devices.urls
+        app_name="devices"
+        urlpatterns = [(path("list/", Devices_list.as_view(), name="device-list")])
+    reverse(music-devices:device-list)
+    reverse(devices:device-list)
+    reverse syntax = reverse(namespace:view_name)
+    Note: namespace and app_name need not to be same
+    app_name in app's urls.py: Sets a default namespace for all URL patterns in that app.
+    namespace in include(): You can override or specify what namespace Django registers that URL set under.
+    When reversing URL: Use reverse("namespace:view_name"). The namespace is derived from either the app_name or the namespace argument.
+    This design allows flexible URL resolution, especially when the same app is included multiple times with different namespaces for different contexts
+### why do we use name in the views
+    urlpatterns = path("devices/", Devices.as_view(), name="devices-list")
+    the name attribute in the path acts a unique identifier that allows use to identify
+    use case:
+        if i use this name inside the reverse("device-list") i can get the full url
+    Consider this scenario:
+    devices as list and plant also has list
+    urls.py
+        urlpatterns = [
+                        (path("mobile-devices/", include("devices.urls"), namespace="mobile-devices")),
+                        (path("music/", include("devices.urls"), namespace="music-devices"))
+                    ]
+    in the devices.urls
+        app_name = "devices" # Here app_name is mandatory since we are using namespace, if there is app_name that provides instance application name that can be overridden by namespace, no app_name means no default app_name then no override it will throw a error
+        urlpatterns = [
+                        (path("list/", Devices.as_view(), name="list"))
+                    ]
+    if i use reverse("list") since there are two list names it will throw a error now i need to use 
+        reverse(mobile-devices:list), reverse(music-devices:list) then i get respective urls
+    Another scenario
+    urls.py
+        urlpatterns = [
+                        (path("plants/", include("plants.urls", namespace="plants")),
+                        (path("sites/", include("sites.urls"), namespace="sites"))
+                    ]
+    in the plants.urls
+        urlpatterns = [(path("list/", Plants.as_view(), name="list")]
+    in the sites.urls
+        urlpatterns = [(path("list/", Sites.as_view(), name="list")]
+    then to use reverse we use reverse(plants:list), reverse(sites:list)
 
+    
+    
 
 
 
