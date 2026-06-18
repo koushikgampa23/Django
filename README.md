@@ -3,6 +3,20 @@
 ## Basics of python
 ### Decorators
 #### Function Decorators
+    A function that extends the behaviour of other function without modifying the base function
+    pass the base function as an argument to the decorator.
+        def add_sprincles(func): #Decorator function
+            def wrapper():
+                print("Add sprincles here!!")
+                func()
+            return wrapper
+        
+        @add_sprincles
+        def get_ice_cream(): # Base function
+            print("Here is the icecream")
+            
+        get_ice_cream()
+        
     Step1) write a function to accept a function as argument
     Step2) write a function adding extra features in it
     Step3) return the current function that we had created
