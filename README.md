@@ -59,6 +59,9 @@
 ### Annotations
     # Annotations are used to get warnings in the code editior and code suggestions
     # Annotations doesnot manuplate the code
+    # Better readability: Other developers can understand what types a function expects
+    # Documentation: Annotations act as self documenting code
+    
     class Car:
         def __init__(self, name: str, price: int) -> None:
             self.name = name
