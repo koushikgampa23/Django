@@ -81,6 +81,8 @@
 ## Introduction
 ### How Django application works
     When ever an http request has been passed to the url. The request has been passed to appropriate view. The view will read or write data along with template it is displayed to user.
+    professional:
+        When a client sends an HTTP request, it first reaches the web server, which forwards it to Django. Django's URL dispatcher (urls.py) matches the request URL to the appropriate view. The view contains the business logic and may interact with models to read or write data in the database using Django ORM. The retrieved data can then be passed to a template to generate HTML, or returned directly as JSON for APIs. Finally, the view returns an HTTP response, which Django sends back to the client.
     URL - Http request uses URL Mapper to send data to corresponding view.
     View - A view receives Http request, access data via models and returns http request.
     Modals - Modals are python objects defining applications data structures. They also provide create, edit and query records in the database.
