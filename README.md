@@ -972,6 +972,8 @@
         urlpatterns = [(path("list/", Sites.as_view(), name="list")]
     then to use reverse we use reverse(plants:list), reverse(sites:list)
 
+## Advanced concepts
+### Models
     
     
 
