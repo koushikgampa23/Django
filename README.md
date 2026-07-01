@@ -1095,6 +1095,33 @@
 
     "select_related() reduces queries by performing SQL JOINs for single-valued relationships (ForeignKey/OneToOne), whereas prefetch_related() reduces queries by fetching related objects in separate queries and joining them in Python for multi-valued relationships (reverse ForeignKey/ManyToMany)."
 
+#### Nested Serializer vs prefetch_related? 
+    Does nested serailizer do N+1 queries?
+    yes, nested serializers can cause the N+1 query problem because they access related objects while serializing. To avoid this, I optimize the queryset in the view using prefetch_related() for reverse ForeignKey and ManyToMany relationships, or select_related() for forward ForeignKey and OneToOne relationships. I don't put these optimizations inside the serializer because the serializer's responsibility is serialization, while the view is responsible for fetching data efficiently.
+
+    prefetch_related() and nested serializers have different responsibilities. prefetch_related() optimizes database access by fetching related objects efficiently and avoiding the N+1 query problem. A nested serializer is responsible for representing those related objects in the API response. In a real-world Django REST Framework application, we typically use them together: optimize the queryset in the view using prefetch_related() or select_related(), and use nested serializers to return the related data in a structured JSON format
+
+    from rest_framework import serializers
+    from .models import Movie, OttPlatform
+
+
+    class MovieSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Movie
+            fields = ["id", "title"]
+
+
+    class OttPlatformSerializer(serializers.ModelSerializer):
+        movies = MovieSerializer(many=True, read_only=True)
+
+        class Meta:
+            model = OttPlatform
+            fields = ["id", "name", "movies"]
+    
+    in the views
+    platforms = OttPlatform.objects.prefetch_related("movies")
+    serailized_data = OttPlatformSerializer(platforms, many=True)
+    return seralized_data.data
     
     
 
