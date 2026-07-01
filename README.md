@@ -1127,7 +1127,57 @@
     prefetch_related optimises query and gives to serailizer class contains nested serailizer that converts complex queriesets to dictionaries
     They work together
 
+#### Serailizer code and views code for prefetch_related and select_related
+
+    class MovieSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = Movie
+            fields = "__all__"
+
+
+    class OttPlatformSerializer(serializers.ModelSerializer):
+        class Meta:
+            model = OttPlatform
+            fields = ["id", "name"]
+
+
+    # Used with select_related()
+    class MovieNestedSerializer(serializers.ModelSerializer):
+        # platform is the ForeignKey field in Movie
+        platform = OttPlatformSerializer(read_only=True)
+
+        class Meta:
+            model = Movie
+            fields = "__all__"
+
+
+    # Used with prefetch_related()
+    class OttPlatformNestedSerializer(serializers.ModelSerializer):
+        # movies is the related_name in Movie
+        movies = MovieSerializer(many=True, read_only=True)
+
+        class Meta:
+            model = OttPlatform
+            fields = ["id", "name", "movies"]
     
+    # Single movie
+    movie = Movie.objects.select_related("platform").get(title="RRR")
+    movie_serializer = MovieNestedSerializer(movie)
+
+    # Multiple movies
+    movies = Movie.objects.select_related("platform")
+    movies_serializer = MovieNestedSerializer(movies, many=True)
+
+    # Single platform
+    platform = OttPlatform.objects.prefetch_related("movies").get(name="Netflix")
+    platform_serializer = OttPlatformNestedSerializer(platform)
+
+    # Multiple platforms
+    platforms = OttPlatform.objects.prefetch_related("movies")
+    platforms_serializer = OttPlatformNestedSerializer(platforms, many=True)
+
+
+
     
 
 
