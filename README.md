@@ -1122,6 +1122,11 @@
     platforms = OttPlatform.objects.prefetch_related("movies")
     serailized_data = OttPlatformSerializer(platforms, many=True)
     return seralized_data.data
+
+    Note:
+    prefetch_related optimises query and gives to serailizer class contains nested serailizer that converts complex queriesets to dictionaries
+    They work together
+
     
     
 
