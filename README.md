@@ -974,6 +974,127 @@
 
 ## Advanced concepts
 ### Models
+    class OttPlatform(models.Model):
+        name = models.CharField(max_length=100)
+
+
+    class Movie(models.Model):
+        title = models.CharField(max_length=100)
+        platform = models.ForeignKey(
+            OttPlatform,
+            on_delete=models.CASCADE,
+            related_name="movies"
+        )
+    
+    Give info on related name, select_related and prefetch_related on this model
+
+#### Why do we use related_name?
+
+    "related_name specifies the name of the reverse relation for a ForeignKey or ManyToManyField. It allows us to access all related objects from the referenced model. For example, if Movie has ForeignKey(OttPlatform, related_name='movies'), then from an OttPlatform instance we can access all its movies using platform.movies.all() instead of Django's default platform.movie_set.all()."
+
+    Example: Movie model as OttPlatform as foreign key relationship
+    Movie  -------------------->  OttPlatform
+       ForeignKey
+
+    Using related_name="movies" creates the reverse:
+    OttPlatform  -------------------->  Movie
+                movies
+    
+    Forward Relation (from Movie to OttPlatform)
+    movie.platform
+
+    Reverse Relation (from OttPlatform to Movie)
+    platform = Platform.objects.filter(name="netflix").first() # 1 db call
+    platform.movies.all() # 1 db call
+
+    Total 2 db calls, it can be optimized using prefetch_related
+
+#### Nested Serializer
+    In the nested serailizer the drf will work internally this platform.movies.all() on this code movies = MovieSerializer(many=True) 
+
+    from the above example for movie -> OttPlatform
+
+    class MovieSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Movie
+        fields = "__all__"
+
+
+    class OttPlatformSerializer(serializers.ModelSerializer):
+        movies = MovieSerializer(many=True) # The variable name must be movies since i had given has movies in the related name if i give other name like movies_list it wont work
+
+        class Meta:
+            model = OttPlatform
+            fields = ["name", "movies"]
+    
+    In the view
+    platform = OttPlatform.objects.get(name="Netflix")
+    serializer = OttPlatformSerializer(platform)
+
+#### What if i dont specify related_name?
+    we can use django default reverse name
+    if related_name = "movies" not mentioned case
+    
+    default name = Model_set for Movie -> movie_set
+
+    i can use platform.movie_set.all()
+
+    in the nested serailizer i can use
+    movie_set = MovieSerailizer(many=True)
+    class Meta:
+        model = OttPlatform
+        fields = ["name", "movie_set"]
+    
+    2 db queries happen here
+    one for Platform.objects.get(name="netflix")
+    second for platform.movies.all()
+
+    since the platform doesnot have data of movie it has to make second query to fetch data
+
+#### seleted_related and prefetch_related
+    "select_related() is used to optimize forward relationships like ForeignKey and OneToOneField. It performs an SQL JOIN and fetches the related object in the same database query. This avoids additional queries when accessing related fields such as movie.platform.name."
+    Movie -------------> OttPlaform
+        Foreign Key
+    movie = Movie.objects.select_related("platform").get(title="rrr") #Here plaform is the field name in the Movie model
+    movie.platform.name # No db call
+
+    sql query it performs internally is
+        SELECT
+            movie.*,
+            ott_platform.*
+        FROM movie
+        INNER JOIN ott_platform
+            ON movie.platform_id = ott_platform.id
+        WHERE movie.title = 'RRR';
+    
+    since select_related using sql join to fetch nested data
+
+#### prefetch_related
+    prefetch_related() is a QuerySet optimization method used to fetch reverse ForeignKey and ManyToMany relationships. It executes separate SQL queries and combines the results in Python, reducing the N+1 query problem.
+
+    I have use case i need to get all ottplatforms and all movies
+    General i do
+    platforms = OttPlatform.objects.all()
+    for platform in platforms:
+        print(platform.name)
+        for movie in platform.movie.all(): # db call to movies
+            print(movie.title)
+    
+    That means if 10 ott platforms are there then i call 10 times db call + 1 db call to get all ott platforms = 11 (N+1) that is expensive
+
+    instead i can add prefetch_related()
+    platforms = OttPlatform.objects.prefetch_related("movies").all()
+    for platform in platforms:
+        print(platform.name)
+        for movie in platform.movies.all(): # No db call to movies
+            print(movie.title)
+    The prefetch_related will make 1 call to get all ottplatforms
+    1 call to get all movies
+    Django maps the movies to their respective platforms in Python.
+    Thus reducing the db calls from 11 to 2
+
+    "select_related() reduces queries by performing SQL JOINs for single-valued relationships (ForeignKey/OneToOne), whereas prefetch_related() reduces queries by fetching related objects in separate queries and joining them in Python for multi-valued relationships (reverse ForeignKey/ManyToMany)."
+
     
     
 
