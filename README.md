@@ -1248,10 +1248,19 @@
     provides GET handler method
 
     RetriveAPIView: Used for readonly endpoints to respresent single model instance
-    Provides Get handler method
+    Provides Get method handler
 
     CreateAPIView: Used for create only endpoint
-    Provides a post handler method
+    Provides a post method handler
+
+    UpdateAPIView: Used for update only endpoint for a single model instance
+    provides Put and patch method handler
+
+    DestroyAPIView: Used for delete only endpoint for a single model instance
+    Provides a delete method handler
+
+    RetriveUpdateAPIView: Used for read or update endpoints to represent a single model instance
+    provides get, put and patch method handlers
 
     List all the products
     ListApiView:
@@ -1309,6 +1318,12 @@
         class ProductListCreateApiView(generics.ListCreateAPIView):
             queryset = Product.objects.all()
             serializer_class = ProductSerializer
+    RetrieveUpdateDestroyAPIView:
+        url = path("products/<int:product_id>/", views.ProductDetailApiView.as_view())
+        class ProductDetailApiView(generics.RetrieveUpdateDestroyAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+            lookup_url_kwarg = "product_id"
     
     Any user can access get request and user should get forbidden if he is not admin user
     make is_staff = false to the user in the db
@@ -1331,6 +1346,51 @@
         def get_queryset(self):
             return super().get_queryset().filter(user=self.request.user)
     Now this queryset will return all the orders associated with active user
+
+#### Filtering, Searching and ordering
+    We are applying filtering, searching and ordering to the response data
+    How to use Filterbackend
+        1.Install the package
+            pip install django-filter
+        2. Add in the install apps
+            django_filters
+        3. Add this in the settings.py file
+            REST_FRAMEWORK = {
+                    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend']
+                } 
+    Search product name and get only that product details
+    in the browser url
+        Add this in the view
+            filterset_fields = ("name", "stock")
+        http://localhost:8000/products/?name=Coffee%20Machine
+        http://localhost:8000/products/?stock=4&name=Digital%20Camera
+        that filters data for both name and stock give result
+
+        that gives data of the Coffee Machine name product
+        Full code:
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+            filterset_fields = ("name", "stock")
+        what if i wanted to filter with ignore case and contains customized one
+        Instead of filterset_fields we can add filterset_class
+        Create a new filters.py file
+            import django_filters
+            from advanced_concepts.models import Product
+
+            class ProductFilter(django_filters.FilterSet):
+                class Meta:
+                    model = Product
+                    # fields = ("name", "stock") # for simple filter
+                    fields = {"name": ["iexact", "contains"], "stock": ["iexact", "gte"]}
+            
+            we even added advanced filtering options like
+            http://localhost:8000/products/?stock__lte=5 provides all the stocks less than equal 5
+            http://localhost:8000/products/?name__iexact=coffee%20machine this will works since it ignores case
+            http://localhost:8000/products/?stock__range=1,5
+
+        
+
 
 
 
