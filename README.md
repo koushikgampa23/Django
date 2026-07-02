@@ -1347,7 +1347,10 @@
             return super().get_queryset().filter(user=self.request.user)
     Now this queryset will return all the orders associated with active user
 
-#### Filtering, Searching and ordering
+### Filtering, Searching and ordering
+#### Django Filter backend
+    instead of returing all the data to api we can return filtered data by passing values are query params + lookup fields to filter data like passing stock__lte=0
+    
     We are applying filtering, searching and ordering to the response data
     How to use Filterbackend
         1.Install the package
@@ -1383,13 +1386,70 @@
                     model = Product
                     # fields = ("name", "stock") # for simple filter
                     fields = {"name": ["iexact", "contains"], "stock": ["iexact", "gte"]}
+        Add the ProductFilter to the views
+            class ProductListCreateApiView(generics.ListCreateAPIView):
+                queryset = Product.objects.all()
+                serializer_class = ProductSerializer
+                filterset_class = ProductFilter
             
-            we even added advanced filtering options like
-            http://localhost:8000/products/?stock__lte=5 provides all the stocks less than equal 5
-            http://localhost:8000/products/?name__iexact=coffee%20machine this will works since it ignores case
-            http://localhost:8000/products/?stock__range=1,5
+        By adding this advanced filters i can do this while api calls
 
-        
+        http://localhost:8000/products/?stock__lte=5 provides all the stocks less than equal 5
+        http://localhost:8000/products/?name__iexact=coffee%20machine this will works since it ignores case
+        http://localhost:8000/products/?stock__range=1,5
+
+#### Search Filters
+    searches will use case-insensitive partial matches. (same as icontains)
+    No need to install any packages unlike filterbackend
+    to do this add this view
+            filter_backends = [filters.SearchFilter]
+            search_fields = ["name", "description"]
+    search this browser
+        http://localhost:8000/products/?search=Bottle2
+        we get list of products if bottle2 present in name or description
+    Full code:
+        from rest_framework import filters
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+            filter_backends = [filters.SearchFilter]
+            search_fields = ["name", "description"]
+#### Order Filters
+    The OrderingFilter class supports simple query parameter controlled ordering of results.
+    Code:
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+            filter_backends = [filters.OrderingFilter]
+            search_fields = ["name", "description"]
+        order name asc
+            http://localhost:8000/products/?ordering=name
+        order name desc
+            http://localhost:8000/products/?ordering=-name
+
+#### Combine all filters
+    from rest_framework import filters
+    from django_filters.rest_framework import DjangoFilterBackend
+    
+    class ProductListCreateApiView(generics.ListCreateAPIView):
+        queryset = Product.objects.all()
+        serializer_class = ProductSerializer
+        filterset_class = ProductFilter
+        filter_backends = [
+            DjangoFilterBackend, # If filterset_class should work
+            filters.OrderingFilter,
+            filters.SearchFilter,
+        ]
+        search_fields = ["=name", "description"]
+    
+    Filter url
+    http://localhost:8000/products/?stock__gte=5 works
+    Search url
+    http://localhost:8000/products/?search=Bottle
+    ordering url
+    http://localhost:8000/products/?ordering=-name
+
+
 
 
 
