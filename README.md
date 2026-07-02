@@ -1177,6 +1177,164 @@
     platforms_serializer = OttPlatformNestedSerializer(platforms, many=True)
 
 
+### Models(Products, Orders, OrderItem)
+    class User(AbstractUser):
+        pass
+
+
+    class Product(models.Model):
+        name = models.CharField(max_length=200)
+        description = models.TextField()
+        price = models.DecimalField(max_digits=10, decimal_places=2)
+        stock = models.IntegerField()
+        image = models.ImageField(upload_to="products/", blank=True, null=True)
+
+        @property
+        def in_stock(self):
+            return self.stock > 0
+
+        def __str__(self):
+            return self.name
+
+
+    class Order(models.Model):
+        class StatusChoices(models.TextChoices):
+            PENDING = "Pending"
+            CONFIRMED = "Confirmed"
+            CANCELLED = "Cancelled"
+
+        order_id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+        user = models.ForeignKey(User, on_delete=models.CASCADE)
+        created_at = models.DateTimeField(auto_now=True)
+        status = models.CharField(
+            max_length=20, choices=StatusChoices.choices, default=StatusChoices.PENDING
+        )
+
+        products = models.ManyToManyField(
+            Product, through="OrderItem", related_name="orders"
+        )
+
+        def __str__(self):
+            return f"Order {self.order_id} by {self.user.username}"
+
+
+    class OrderItem(
+        models.Model
+    ):  # It is not even required to create a through table since many to many field should have already given that but i want to add extra field to the through table called quantity so iam writing this class
+        order = models.ForeignKey(Order, on_delete=models.CASCADE)
+        product = models.ForeignKey(Product, on_delete=models.CASCADE)
+        quantity = models.PositiveIntegerField()
+
+        @property
+        def item_sub_total(self):
+            return self.product.price * self.quantity
+
+        def __str__(self):
+            return f"{self.product.price} X {self.quantity} in order {self.order.order_id}"
+
+#### Lookups 
+    gte, gt, lte, lt
+    Product.objects.filter(stock__gte=2), Product.objects.exclude(stock_lte=0)
+
+#### Generics
+    Attributes that are defined in GenericAPIView
+    queryset - used for returing objects from the views
+        we must either set this attribute or override the get_queryset() method
+    serializer_class - that should be used for validating and deserializing inputs
+        set this attribute or override with get_serailizer_class()
+    lookup_url_kwarg - The url keyword argument that should be used for object lookup, by default the lookup argument is pk(primary key).
+
+    ListAPIView: Used for readonly endpoints to respresent collections of model instances
+    provides GET handler method
+
+    RetriveAPIView: Used for readonly endpoints to respresent single model instance
+    Provides Get handler method
+
+    CreateAPIView: Used for create only endpoint
+    Provides a post handler method
+
+    List all the products
+    ListApiView:
+        url = path("products/", views.ProductListApiView.as_view())
+        class ProductListApiView(generics.ListAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+    
+    List all the products based on primary key
+    RetrieveAPIView:
+        url = path("products/<int:pk>/", views.ProductDetailApiView.as_view())
+        class ProductDetailApiView(generics.RetrieveAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+        Note:
+            Here i didnt add pk in the ProductDetailApiView class
+            RetrieveAPIView has default lookup it filters based on primarykey the only thing is we need to pass from url(<int:pk>/)
+        what if i wanted to change the path param from pk to use product_id?
+            url = path("products/<int:product_id>/", views.ProductDetailApiView.as_view())
+            class ProductDetailApiView(generics.RetrieveAPIView):
+                queryset = Product.objects.all()
+                serializer_class = ProductSerializer
+                lookup_url_kwarg = "product_id"
+        Important:
+        Note: RetrieveAPIView should be used on unique since it internally uses .get if more than response it will through error
+
+        Instead of filtering based on primary key i wanted to filter based on product
+            url = path("products/<int:stock_available>/", views.ProductDetailApiView.as_view())
+            class ProductDetailApiView(generics.RetrieveAPIView):
+                queryset = Product.objects.all()
+                serializer_class = ProductSerializer
+                lookup_url_kwarg = "stock_available" # This path param lookup url kwarg
+                lookup_field = "stock" # Filter based on stock
+    CreateAPIView:
+        url = path("products/create/", views.ProductCreateAPIView.as_view()),
+        class ProductCreateAPIView(generics.CreateAPIView):
+            model = Product
+            serializer_class = ProductSerializer
+        Note: The ProductSerailizer should contain all the required fields if not in the post request we cant send all the values to backend so we will get errors
+        its better to use different serializers for get and post request
+        Example:
+            In the get method i dont want to show description field so i have removed this field in serailizer
+            if i use this same serializer in the CreateApiView i cant send data to description field that is required field
+        
+        Override CreateAPIView
+        class ProductCreateAPIView(generics.CreateAPIView):
+            model = Product
+            serializer_class = ProductSerializer
+
+            def create(self, request, *args, **kwargs):
+                print(request.data)
+                return super().create(request, *args, **kwargs)
+    ListCreateAPIView:
+        url = path("products/", views.ProductListCreateApiView.as_view()),
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+    
+    Any user can access get request and user should get forbidden if he is not admin user
+    make is_staff = false to the user in the db
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+        queryset = Product.objects.all()
+        serializer_class = ProductSerializer
+
+        def get_permissions(self):
+            self.permission_classes = [AllowAny]
+            if self.request.method == "POST":
+                self.permission_classes = [IsAdminUser]
+            return super().get_permissions()
+
+
+#### Override ListAPIView generic
+    class OrderListApiView(generics.ListAPIView):
+        queryset = Order.objects.all()
+        serializer_class = OrderSerializer
+
+        def get_queryset(self):
+            return super().get_queryset().filter(user=self.request.user)
+    Now this queryset will return all the orders associated with active user
+
+
+
+
 
     
 
