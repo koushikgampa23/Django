@@ -1427,7 +1427,7 @@
         order name desc
             http://localhost:8000/products/?ordering=-name
 
-#### Combine all filters
+#### Combine all filters(filter, search, order)
     from rest_framework import filters
     from django_filters.rest_framework import DjangoFilterBackend
     
@@ -1449,8 +1449,88 @@
     ordering url
     http://localhost:8000/products/?ordering=-name
 
+#### Custom Filter
+    In the filters.py(it is just like serializer.py same level) file add this code
+    
+    class InStockProductFilter(filters.BaseFilterBackend):
+        def filter_queryset(self, request, queryset, view):
+            return queryset.filter(stock__gt=0)
+    
+    and use in the views
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.OrderingFilter,
+        filters.SearchFilter,
+        InStockProductFilter,
+    ]
 
+    when ever i go to products/ page it will automatically filter all the stock = 0
 
+### Pagination
+#### PageNumberPagination
+    Add this is in settings.py
+    REST_FRAMEWORK = {
+        "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+        "PAGE_SIZE": 5,
+    }
+    This will apply to all endpoints that returns list of data
+    count, next, previous links to navigate to next pages since pag_size is 5 we get 5 data's in each page
+    After applying this we 
+        {
+            "count": 16,
+            "next": "http://localhost:8000/products/?ordering=name&page=2",
+            "previous": null,
+            "results": [
+                {
+                    "id": 1,
+                    "name": "A Scanner Darkly",
+                    "price": "12.99",
+                    "stock": 4,
+                    "description": "hello"
+                },
+                {
+                    "id": 7,
+                    "name": "Bottle",
+                    "price": "10.00",
+                    "stock": 2,
+                    "description": "Miton product"
+                }
+            ]
+        }
+    Override default page with new page
+    from rest_framework.pagination import PageNumberPagination
+    class ProductListCreateApiView(generics.ListCreateAPIView):
+        queryset = Product.objects.all()
+        serializer_class = ProductSerializer
+        pagination_class = PageNumberPagination
+        pagination_class.page_size = 2
+        pagination_class.page_query_param = "pagenum" # To override default page to pagenum query param
+        pagination_class.page_size_query_param = "size" # Allows user to enter page size
+        pagination_class.max_page_size = 100 #Max limit(even if client enter 120 it returns 100 records per page)
+    Usage in Webbrowser
+        http://localhost:8000/products/?pagenum=2
+        http://localhost:8000/products/?size=10
+    combine
+        http://localhost:8000/products/?size=10&pagenum=2 #10 records per each page, navigate to page 2
+
+    we will get this error if we do this
+        Pagination may yield inconsistent results with an unordered object_list: <class 'advanced_concepts.models.Product'> QuerySet.
+        paginator = self.django_paginator_class(queryset, page_size)
+    
+    To solve this issue change queryset to this
+        queryset = Product.objects.order_by("pk")
+    It will solve the error
+
+#### LimitOffsetPagination
+    That provides limit(size of the page) and offset(works like sql)
+    In sql
+        select * from tags limit 5 offset 10;
+        since offset is 10 it will skip first 10 records then output is 11,12,13,14,15
+    In the views use this
+        pagination_class = LimitOffsetPagination
+        In the browser it provides this http://localhost:8000/products/?limit=2&offset=8
+        that means it skips 8 records and gives 9,10 record
+    
 
 
 
