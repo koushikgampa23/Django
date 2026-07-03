@@ -1602,7 +1602,9 @@
         In the browser it provides this http://localhost:8000/products/?limit=2&offset=8
         that means it skips 8 records and gives 9,10 record
     
-
+#### Middleware
+#### Difference between multi threading and multi processing
+#### Celery with django
 
 
 
