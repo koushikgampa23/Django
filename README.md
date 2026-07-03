@@ -84,7 +84,7 @@
     professional:
         When a client sends an HTTP request, it first reaches the web server, which forwards it to Django. Django's URL dispatcher (urls.py) matches the request URL to the appropriate view. The view contains the business logic and may interact with models to read or write data in the database using Django ORM. The retrieved data can then be passed to a template to generate HTML, or returned directly as JSON for APIs. Finally, the view returns an HTTP response, which Django sends back to the client.
     URL - Http request uses URL Mapper to send data to corresponding view.
-    View - A view receives Http request, access data via models and returns http request.
+    View - A view receives Http request, access data via models and returns http response.
     Modals - Modals are python objects defining applications data structures. They also provide create, edit and query records in the database.
     Template - Templates define the structure of a file layout to represent data in the web page.
     An application aka app is the functional unit of the project. To create a app within the project we use the command
@@ -187,14 +187,73 @@
     movie = Movie.objects.all().filter(name=name).first()
         # Now movie is not query set it is an object if i want to pass to JsonResponse i need to make it as dictionary
     data = {"name":movie.name, "description":movie.description, "active":movie.active}
-# Sample CRUD operation on user table with serializers
+
+    Note:
+        A QuerySet contains model instances (e.g., [<Movie: RRR>, <Movie: Kalki>]), which cannot be directly returned as JSON because model instances are not JSON serializable. We pass the QuerySet to a serializer, which converts each model instance into Python dictionaries containing primitive data types. These primitive data types are then rendered as JSON in the HTTP response.
+
+        Interview explanation:
+        A QuerySet contains Django model instances, which are not JSON serializable. The serializer converts these model instances into Python primitive data types like dictionaries and lists. Finally, Django REST Framework's renderer converts those primitive data types into JSON before sending the HTTP response. Validation is performed by the serializer only when deserializing input data (e.g., during POST, PUT, or PATCH requests).
+
+### Query params and path params
+    path params are mandatory fields to access the view, query params are optional
+    urlpatterns = [
+        path("products/<int:product_id>/", ProductView.as_view()), #Path param
+        path("orders/", OrderView.as_view())
+    ]
+    path param view
+        http://localhost:8000/product/1/
+        class ProductView(APIView):
+            def get(self, request, product_id=None):
+                print(product_id)
+    query param view
+        http://localhost:8000/orders/?username=koushik&password=koushik
+        class OrderView(APIView):
+            def get(self,request):
+                name = self.GET.get("username", None)
+                password = self.GET.get("password", None)
+
+## When to use .save() method
+    If we are dealing with model instance and changes need to there in db then we can use .save() method
+    Create a product in db:
+        1.Create product model instance and save it
+            product = Product(name="bottle",price=23, quantity=5)
+            product.save() 
+        2.Use create method
+            Product.objects.create(name="bottle", price=23, quantity=5)
+            Note: create() internally creates a model instance and calls .save().
+
+    Updating the product
+        1. Using model instance and call save
+            product = Product.objects.get(name="bottle")
+            product.name = "bottle2"
+            product.price = 20
+            product.quantity = 10
+            product.save()
+        2.Use update method
+            product = Product.objects.filter(name="bottle").update(name="bottle2", price=20, quantity=10)
+            Note:
+                update() is a QuerySet method, not a model instance method.
+                It executes a direct SQL UPDATE.
+                It does not call .save().
+                It does not trigger save() overrides or pre_save/post_save signals.
+
+    Delete method:
+        product = Product.objects.get(name="bottle")
+        product.delete()
+        Note: delete() removes the record from the database. It does not use .save().
+
+# Sample CRUD operation on user table with out serializers
+    Note:
+        create, update, delete internally uses save method
+        if we are interacting with model then only we can use .save method
+
     code in the view file
     class UserData(APIView):
         permission_classes = []
         authentication_classes = []
     
         def get(self, request):
-            user_data = User.objects.all().values()
+            user_data = User.objects.all().values() # By using values we are already converting queryset to python dictionaries that are serializable
             return Response({"message": user_data})
     
         def post(self, request):
@@ -836,8 +895,8 @@
 ## Create custom commands in django
     **Using Arguments**
     Step1) create a app
-        python manage.py startapp
-    Step2) Inside this api folder create a management folder inside create commands folder then create a file createuser
+        python manage.py startapp api
+    Step2) Inside this api folder create a dir management/commands/createuser.py
         Add this in createuser.py
         from demo.users.models import User
         from django.core.exceptions import ValidationError
@@ -1327,15 +1386,17 @@
     
     Any user can access get request and user should get forbidden if he is not admin user
     make is_staff = false to the user in the db
-        class ProductListCreateApiView(generics.ListCreateAPIView):
-        queryset = Product.objects.all()
-        serializer_class = ProductSerializer
+    lets override permission classes
 
-        def get_permissions(self):
-            self.permission_classes = [AllowAny]
-            if self.request.method == "POST":
-                self.permission_classes = [IsAdminUser]
-            return super().get_permissions()
+        class ProductListCreateApiView(generics.ListCreateAPIView):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+
+            def get_permissions(self):
+                self.permission_classes = [AllowAny]
+                if self.request.method == "POST":
+                    self.permission_classes = [IsAdminUser]
+                return super().get_permissions()
 
 
 #### Override ListAPIView generic
@@ -1371,13 +1432,16 @@
 
         that gives data of the Coffee Machine name product
         Full code:
+
         class ProductListCreateApiView(generics.ListCreateAPIView):
             queryset = Product.objects.all()
             serializer_class = ProductSerializer
             filterset_fields = ("name", "stock")
+        
         what if i wanted to filter with ignore case and contains customized one
         Instead of filterset_fields we can add filterset_class
-        Create a new filters.py file
+
+        1.Create a new filters.py file
             import django_filters
             from advanced_concepts.models import Product
 
@@ -1386,7 +1450,8 @@
                     model = Product
                     # fields = ("name", "stock") # for simple filter
                     fields = {"name": ["iexact", "contains"], "stock": ["iexact", "gte"]}
-        Add the ProductFilter to the views
+        
+        2.Add the ProductFilter to the views
             class ProductListCreateApiView(generics.ListCreateAPIView):
                 queryset = Product.objects.all()
                 serializer_class = ProductSerializer
@@ -1407,15 +1472,19 @@
     search this browser
         http://localhost:8000/products/?search=Bottle2
         we get list of products if bottle2 present in name or description
+
     Full code:
         from rest_framework import filters
         class ProductListCreateApiView(generics.ListCreateAPIView):
             queryset = Product.objects.all()
             serializer_class = ProductSerializer
-            filter_backends = [filters.SearchFilter]
-            search_fields = ["name", "description"]
+            filter_backends = [filters.SearchFilter] # Wanted to use search filter
+            search_fields = ["name", "description"] # Fields to search
+
 #### Order Filters
     The OrderingFilter class supports simple query parameter controlled ordering of results.
+    I wanted to order objects based on name then i can use this url
+    http://localhost:8000/products/?ordering=name
     Code:
         class ProductListCreateApiView(generics.ListCreateAPIView):
             queryset = Product.objects.all()
@@ -1468,13 +1537,14 @@
 
 ### Pagination
 #### PageNumberPagination
-    Add this is in settings.py
+    Setup:
+    1.Add this is in settings.py
     REST_FRAMEWORK = {
         "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
         "PAGE_SIZE": 5,
     }
     This will apply to all endpoints that returns list of data
-    count, next, previous links to navigate to next pages since pag_size is 5 we get 5 data's in each page
+    Returns count of objects, next page link, previous page link, since page_size is 5 we get 5 data's in each page
     After applying this we 
         {
             "count": 16,
@@ -1498,6 +1568,7 @@
             ]
         }
     Override default page with new page
+
     from rest_framework.pagination import PageNumberPagination
     class ProductListCreateApiView(generics.ListCreateAPIView):
         queryset = Product.objects.all()
@@ -1507,15 +1578,15 @@
         pagination_class.page_query_param = "pagenum" # To override default page to pagenum query param
         pagination_class.page_size_query_param = "size" # Allows user to enter page size
         pagination_class.max_page_size = 100 #Max limit(even if client enter 120 it returns 100 records per page)
+
     Usage in Webbrowser
         http://localhost:8000/products/?pagenum=2
         http://localhost:8000/products/?size=10
     combine
         http://localhost:8000/products/?size=10&pagenum=2 #10 records per each page, navigate to page 2
 
-    we will get this error if we do this
-        Pagination may yield inconsistent results with an unordered object_list: <class 'advanced_concepts.models.Product'> QuerySet.
-        paginator = self.django_paginator_class(queryset, page_size)
+    we will get this error if we add above code
+        Pagination may yield inconsistent results with an unordered object_list: <class 'advanced_concepts.models.Product'> QuerySet. paginator = self.django_paginator_class(queryset, page_size)
     
     To solve this issue change queryset to this
         queryset = Product.objects.order_by("pk")
