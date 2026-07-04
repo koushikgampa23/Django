@@ -1735,7 +1735,78 @@
     @method_decorator(vary_on_headers("Authorization"))
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
-    
+
+#### API Throttling
+    Limiting the number of requests that a single user can send, over a certain period time
+    AnonRateThrottle, UserRateThrottle, ScopedRateThrottle
+    1.Add this in settings.py file
+        REST_FRAMEWORK = {
+        'DEFAULT_THROTTLE_CLASSES': [
+            'rest_framework.throttling.AnonRateThrottle',
+            'rest_framework.throttling.UserRateThrottle'
+        ],
+        'DEFAULT_THROTTLE_RATES': {
+            'anon': '100/day',
+            'user': '1000/day'
+        }
+        }
+    Since this applied globally anonmous users can send 100 requests per day
+    and authenticated users can send 1000 requests per day
+    We can limit by second, minute, hour, day or using first letter s,m,hr,d
+    I wanted to implement 10 request per minute and 15 requests per hour
+
+    1.Create BurstRateThrottle class and SustainedRateThrottle 
+    throttles.py
+        from rest_framework.throttling import UserRateThrottle
+
+        class BurstRateThrottle(UserRateThrottle):
+            scope = "burst"
+
+        class SustainedRateThrottle(UserRateThrottle):
+            scope = "sustained"
+    2.In setting.py add this
+            "DEFAULT_THROTTLE_CLASSES": [
+                # "rest_framework.throttling.AnonRateThrottle",
+                "advanced_concepts.throttles.BurstRateThrottle",
+                "advanced_concepts.throttles.SustainedRateThrottle",
+            ],
+            "DEFAULT_THROTTLE_RATES": {
+                # "anon": "2/day",
+                # "user": "2/minute"
+                "burst": "10/minute",
+                "sustained": "15/hour",
+            },
+    Now the user can send 10 request per minute and after 1 minute he can send for 5 more then he has to wait for an hour
+
+    ScopedRateThrottle
+    We can cutomize throttle for each view
+    1.Views.py add this
+        class OrderViewSet(ModelViewSet):
+            queryset = Order.objects.all()
+            serializer_class = OrderSerializer
+            throttle_scope = "orders"
+        class ProductViewSet(ModelViewSet):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+            throttle_scope = "products"
+    2.In settings.py
+        REST_FRAMEWORK = {
+            "DEFAULT_THROTTLE_CLASSES": [
+                "rest_framework.throttling.ScopedRateThrottle",
+            ],
+            "DEFAULT_THROTTLE_RATES": {"orders": "2/min", "products": "3/min"},
+        }
+    2 requests i can send to orders and 3 requets per product per min
+
+    i will get 429 status code too many request if i do more
+
+    Note:
+        The application-level throttling that REST framework provides should not be considered a security measure or protection against brute forcing or denial-of-service attacks. Deliberately malicious actors will always be able to spoof IP origins. In addition to this, the built-in throttling implementations are implemented using Django's cache framework, and use non-atomic operations to determine the request rate, which may sometimes result in some fuzziness.
+
+        The application-level throttling provided by REST framework is intended for implementing policies such as different business tiers and basic protections against service over-use.
+
+
+
 #### Middleware
 #### Difference between multi threading and multi processing
 #### Celery with django
