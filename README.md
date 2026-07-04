@@ -1685,8 +1685,14 @@
 #### Implementing cache and invalidating cache if data is added or deleted
     Consider if the queryset response it is taking 2 seconds, we need to cache the data in the redis memory since products were already listed to user earlier instead of calling the db again and waiting 2 seconds
     the data will be stored in redis for 15 minutes given 60*15
+
+    Implement the viewset override a particulat method that i want to cache and store api response in cache
+
+    cache_page takes time, key_prefix
     
     1. Code:
+    from django.utils.decorators import method_decorator
+    from django.views.decorators.cache import cache_page
     class ProductViewSet(ModelViewSet):
         queryset = Product.objects.all()
         serializer_class = ProductSerializer
@@ -1713,6 +1719,22 @@
         def invalidate_product_cache(sender, instance, **kwargs):
             print("Clearing product cache")
             cache.delete_pattern("*product_list*") # product_list the key_prefix we created during cache creation see above code
+
+### Vary headers(advanced concept of cache)
+    Control cache based on specific request headers
+    Suppose has hit products/ api that is cached
+    User has changed jwt token and hit the api again i get the same response i get the response from previous user
+    The new cache is new url like product/,product/ordering=name
+    Here url is same but the user changed
+    Instead of cache_page decorator we can use vary_on_cookie, vary_on_headers
+    Add vary_on_headers code
+
+    from django.views.decorators.vary import vary_on_headers
+
+    @method_decorator(cache_page(60 * 15, key_prefix="product_list")) #Chaching happens here
+    @method_decorator(vary_on_headers("Authorization"))
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
     
 #### Middleware
 #### Difference between multi threading and multi processing
