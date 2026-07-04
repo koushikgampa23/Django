@@ -1626,6 +1626,93 @@
 
 #### Modelview to create nested data
     Check models.py file, serailizers.py and views.py file
+
+### Signals
+    Sometimes in django we need differenet parts of te applicaiton to comuuicate each toher and respond to different events, that is where signals come in
+    Signals allows you to connect event to actions
+    Signals allows to notify a set of receivers that some particular event has been taken
+    Many pieces of code might be interested in a particulat event
+
+    Create a signal, to send welcome email, when user has been created
+    1.Add this in signals.py file
+        @receiver(post_save, sender=User, dispatch_uid="send_welcome_email")
+        def send_welcome_email(sender, instance, created, **kwargs):
+            """Sends an welcome email when a new user has been created"""
+            print("signla fired")
+            if created:
+                send_mail(
+                    "Welcome new user",
+                    "Thankyou for signing up",
+                    "testdjango.gmail.com",  # From email
+                    [instance.email],  # Receipt email
+                    fail_silently=False,
+                )
+    2.Add this in apps.py file:
+        Import ready method in apps.py
+        Full code:
+        
+        from django.apps import AppConfig
+        class AdvancedConceptsConfig(AppConfig):
+            name = "advanced_concepts"
+
+            def ready(self):
+                from . import signals
+
+    3.We dont want to send real email during development we can use 
+        Console backend:
+            add this in settings.py 
+            EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+    4.To test we need to create a user using python manage.py createsuperuser
+    5.You will get email in the console
+
+### Caching
+    1.Create a redis container
+        docker run --name django-redis -d -p 6380:6379 redis
+    2.Install django redis
+        pip install django-redis
+    3.Settings.py add this
+        CACHES = {
+                "default": {
+                    "BACKEND": "django_redis.cache.RedisCache",
+                    "LOCATION": "redis://127.0.0.1:6380/1",
+                }
+            }
+    Caching data is better if the data is not going to change frequently
+    when ever if the data is added or updated we need invalidate cache data to get new cache
+
+    Redis by default provides 16 data bases in this i will database 1
+
+#### Implementing cache and invalidating cache if data is added or deleted
+    Consider if the queryset response it is taking 2 seconds, we need to cache the data in the redis memory since products were already listed to user earlier instead of calling the db again and waiting 2 seconds
+    the data will be stored in redis for 15 minutes given 60*15
+    
+    1. Code:
+    class ProductViewSet(ModelViewSet):
+        queryset = Product.objects.all()
+        serializer_class = ProductSerializer
+
+        def get_queryset(self):
+            import time
+
+            time.sleep(2) #Queryset gives response 2 seconds delay
+            return super().get_queryset()
+
+        @method_decorator(cache_page(60 * 15, key_prefix="product_list")) #Chaching happens here
+        def list(self, request, *args, **kwargs):
+            return super().list(request, *args, **kwargs)
+    
+    Consider hit the endpoint products/ first time it will be 2 seconds now data is cached in redis
+    Now hit again product/ get the data in milliseconds instead of getting from db we are getting data from redis memory
+
+    what if data has been updated then the data will be same, we need to invalidate cache using signals
+
+    wher ever post_save, post_delete happens we invalidate redis cache 
+    
+    2. Signals.py
+        @receiver([post_save, post_delete], sender=Product)
+        def invalidate_product_cache(sender, instance, **kwargs):
+            print("Clearing product cache")
+            cache.delete_pattern("*product_list*") # product_list the key_prefix we created during cache creation see above code
     
 #### Middleware
 #### Difference between multi threading and multi processing
