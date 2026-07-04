@@ -606,7 +606,7 @@
 
 ## ModelViewSet
     ModelViewSet simplifiles the boiler plate code by providing all the CRUD operations in it and it handles the routing as well
-    we can override the any method using list, create, retrive, destroy, partial_update
+    Provides default create(), retrieve(), update(), partial_update(), destroy() and list() actions
     Step1) Create a serializer
     In the serializers.py file add this
         class UserSerializer(ModelSerializer):
@@ -623,11 +623,12 @@
             authentication_classes = []
     Step3) Add this in the Urls
         First way
+            from . import views
             from django.routers import DefaultRouter
             urlpatterns = []
 
             router = DefaultRouter()
-            router.register("userdata")
+            router.register("userdata", views.UserData)
             urlpatterns+=router.urls
         The other way
             from django.urls import path, include
@@ -656,6 +657,27 @@
             users = User.objects.filter(id=industry.owner_id)
             serializers = UserSerializer(users, many=True)
             return Response(serializers.data)
+    
+    Explained with simple example
+    Create a viewset with products/ url and products/1/ url
+
+        class ProductViewSet(ModelViewSet):
+            queryset = Product.objects.all()
+            serializer_class = ProductSerializer
+
+            @action(detail=False, methods=["get"], permission_classes=[IsAuthenticated])
+            def valid_products(self, request):
+                products = self.get_queryset().filter(stock__gt=2)
+                serializer = self.get_serializer(products, many=True)
+                return Response(serializer.data)
+        Url code:
+            router = DefaultRouter()
+            router.register("products", views.ProductViewSet)
+            urlpatterns += router.urls
+        
+    By using action we are extending the base viewset with the own get url
+    Now we can access valid_products via http://localhost:8000/products/valid_products/
+
             
 ## jwt Custom Authentication
     Steps1)
@@ -1601,6 +1623,9 @@
         pagination_class = LimitOffsetPagination
         In the browser it provides this http://localhost:8000/products/?limit=2&offset=8
         that means it skips 8 records and gives 9,10 record
+
+#### Modelview to create nested data
+    Check models.py file, serailizers.py and views.py file
     
 #### Middleware
 #### Difference between multi threading and multi processing
