@@ -1805,12 +1805,202 @@
 
         The application-level throttling provided by REST framework is intended for implementing policies such as different business tiers and basic protections against service over-use.
 
-
-
 #### Middleware
 #### Difference between multi threading and multi processing
 #### Celery with django
 
+### Django Question
+#### Why cant we use python manage.py runserver in the production?
+    The runserver command is designed only for development
+    It lacks production features such as:
+        High Performance
+        Efficient handling of many Concurrent users
+        Security Hardening
+        Load balancing
+        Request buffering
+        HTTPS termination
+        Staic File serving
+
+#### What is ngnix why it is put before django?
+    Ngnix is a webserver and a reverse proxy
+    
+    Reverse Proxy: Reverse proxy receives request on behalf of your django applicaiton and forwards it internally.
+
+    Instead of every client taking directly to django, clients first talk to ngnix.
+    The client doesnot know django exists, since it only talks to ngnix.
+
+    if request directly goes to django then django has to deal with:
+        Images
+        CSS
+        Javascript
+        API request
+        videos
+        File downloads
+    This wastes django workers on the tasks that doesnot require python
+
+    Responsibilty of ngix:
+    1.Static file serving:
+        /static/css/style.css
+    2.Media file serving:
+        /media/profile.jpg
+    3.HTTPS (SSL termination)
+        The SSL/TLS encryption is often handled by Nginx.
+        Https -> ngix(HTTP) -> GUNICORN -> django
+    4.Load balancing
+        suppose we have multiple django instances
+        Ngnix distributes requests among them to improve scalability and availability
+    5.Request Buffering
+        If a client uploads 5 gb file
+        Without ngnix:
+            A django worker stays occupied during the upload.
+        Wit Ngnix:
+            browser -> ngnix recieves file upload -> upload completes -> request forwarded to django
+            Django spends less time waiting on slow clients
+    6.Security
+        Nginx can:
+            Block malicious requests
+            Limit request rates
+            Restrict access to certain paths
+            Hide details about your backend
+            Add security-related HTTP headers
+
+#### Difference between ngnix vs gunicorn
+    Ngnix:
+        Web server
+        Reverse proxy
+        Serves staic and media files
+        Handles HTTPS
+        Can load balance
+    Gunicorn:
+        Python application server
+        Starts python worker processes
+        Loads your django application
+        Executes your django code
+    Ngnix does not execute your python code
+    Gunicorn does it
+
+    Production Flow;
+    Browser
+        │
+    HTTPS Request
+        │
+        ▼
+    Nginx
+        │
+        ▼
+    Gunicorn (WSGI)
+        │
+        ▼
+    Django
+        │
+        ▼
+    View
+        │
+        ▼
+    PostgreSQL   
+    The response then travel back in reverse
+    PostgreSQL
+        │
+        ▼
+    Django
+        │
+        ▼
+    Gunicorn
+        │
+        ▼
+    Nginx
+        │
+        ▼
+    Browser 
+
+    Interview Answer:
+        In development, the browser can send requests directly to Django's built-in development server (runserver). However, in production, requests are typically received by Nginx, which acts as a reverse proxy. Nginx serves static and media files efficiently, terminates HTTPS connections, can perform load balancing, and forwards only dynamic requests to an application server such as Gunicorn or Uvicorn. The application server loads the Django application and executes the Python code. This architecture improves performance, scalability, and security compared to exposing Django directly to the internet.
+
+#### WSGI vs ASGI   
+    WSGI:
+    WSGI(Web Server Gateway Interface) it is a python standard that defins how a web server communicates with python application server.
+    It was designed before python introduced async and await.
+    WSGI process one request per worker.
+    
+    Suppose a request takes 5 seconds
+        During the 5 seconds the worker is occupied.
+        The cpu is mostly idle
+        New request waits
+    
+    Advantages of WSGI:
+        simple architecture
+        Mature ecosystem
+        Excellent for CRUD applications
+        Stable and battle tested
+        Easier debugging
+    Disadvantages:
+        Poor Performance for:
+            Websockets
+            Long lived connections
+            Chat applications
+            Streaming
+            Thousands of concurrent connections
+            Long pooling
+    
+    ASGI(Asyncronous Server Gateway Interface):
+        It is the successor of WSGI
+        It supports both:
+            Syncronous Code
+            Asyncronous code
+        It enables django to handle many I/O bound operations concurrently.
+        Suppose one request is waiting for an API response.
+        Instead of blocking, ASGI allows the worker to handle another request.
+        This is called non-blocking I/O.
+        Instead of wasting CPU time waiting for I/O, the event loop schedules other tasks.
+        ![alt text](image.png)
+    
+#### Does ASGI makes everything faster?
+    No
+    products = Product.objects.all()
+    The Django ORM is synchronous in many common usage patterns.
+    Making the view async does not automatically speed up database queries.
+    ASGI mainly improves performance when your application spends time waiting on external I/O, such as:
+        External REST APIs
+        Redis
+        File storage
+        WebSockets
+        Streaming responses
+
+#### Interview answer for WSGI vs ASGI
+    WSGI (Web Server Gateway Interface) is the standard interface that allows a web server to communicate with a synchronous Python web application. In a Django deployment, a web server like Nginx forwards requests to an application server such as Gunicorn, which loads the Django application through wsgi.py. Each worker processes one request at a time, so if a request blocks while waiting for an external API or other I/O operation, that worker cannot process another request until it completes.
+
+    ASGI (Asynchronous Server Gateway Interface) extends this model to support both synchronous and asynchronous applications. It enables Django to run async views and works with servers such as Uvicorn or Daphne through asgi.py. When an async view is waiting on I/O, the event loop can switch to other requests instead of blocking the worker, making ASGI particularly useful for WebSockets, streaming, long polling, and applications with many concurrent connections.
+
+    However, ASGI is not automatically faster for every application. If most of the workload is synchronous, such as standard ORM operations or CPU-bound processing, the performance benefits may be minimal. The choice between WSGI and ASGI depends on the application's concurrency and I/O requirements rather than assuming ASGI is always superior.
+
+#### Which severs are used?
+    WSGI: Gunicorn, uWSGI, mod_wsgi
+    ASGI: uvicorn, Daphne, Hypercorn
+
+#### Why doesn't ASGI automatically make every Django application faster?
+    CPU bound work:
+        The cpu is busy doing heavy computations
+    I/O bound(Input/Output Bound):
+        The program is mostly waiting for some external operation to finish.
+    In the cpu bound task
+        the CPU is actively calculating.
+        There is no waiting
+        ASGI cannot improve this
+    In the I/O bound task:
+        The cpu is mostly idle
+        This is where ASGI shines here
+        Instead of wasting the waiting time, the event loop executes other request.
+    Interview answer:
+        ASGI improves concurrency, not raw execution speed. Its main advantage is handling many I/O-bound operations efficiently. If a request spends time waiting for external APIs, WebSockets, or other network or file I/O, the event loop can process other requests during that wait. However, CPU-bound work or synchronous operations, such as standard Django ORM queries, still occupy execution time and don't automatically become faster simply because the application uses ASGI.
+
+##### Can synchronous views run under ASGI?
+    YEs, Django detects that it's a synchronous view and executes it in a way that's compatible with the ASGI server.
+
+#### Can asynchronous views run under WSGI?
+    Yes, Django can execute async views under WSGI for compatibility, but they don't get the scalability and concurrency benefits that ASGI provides.
+
+#### Why not make the ORM fully async?
+    Django's ORM has traditionally been synchronous, so a database query blocks until the database returns a result. In an async view, blocking the event loop would reduce concurrency. To avoid this, Django can execute synchronous ORM operations in a separate thread using sync_to_async, allowing the event loop to continue serving other requests. Newer Django versions also provide async ORM methods such as aget() and acreate() for supported operations, but not every ORM feature is fully asynchronous. Therefore, when writing async views, it's important to use async-compatible database operations or explicitly bridge synchronous code to avoid blocking the event loop.
 
 
 
