@@ -2002,7 +2002,112 @@
 #### Why not make the ORM fully async?
     Django's ORM has traditionally been synchronous, so a database query blocks until the database returns a result. In an async view, blocking the event loop would reduce concurrency. To avoid this, Django can execute synchronous ORM operations in a separate thread using sync_to_async, allowing the event loop to continue serving other requests. Newer Django versions also provide async ORM methods such as aget() and acreate() for supported operations, but not every ORM feature is fully asynchronous. Therefore, when writing async views, it's important to use async-compatible database operations or explicitly bridge synchronous code to avoid blocking the event loop.
 
+### How Django loads settings.py, INSTALLED_APPS, and the App Registry
+    How django application works?
 
+    manage.py(loads settings env) contains -> execute_from_command_line -> execute() -> it contains -> django.setup() -> populate() this function we will read Installed_apps.
+    App instances were intialized and added to the App registry. in thed setup() function
+    
+    Loading settings.py file
+        Django doesn't use the raw module directly.
+        Instead it creates a special object called
+        django.conf.settings
+
+        from django.conf import settings
+        This isn't reading the file every time.
+        It's reading from the already initialized settings object.
+
+    AppConfig
+        Django creates an AppConfig object for every installed app.
+
+    App Registry
+        The registry keeps track of:
+            installed apps
+            models
+            signals
+            app configuration
+
+        Without the App Registry, Django wouldn't know which models exist.
+
+        from django.apps import apps
+
+        Product = apps.get_model("shop", "Product")
+        Because the App Registry already contains metadata for all registered models.
+    
+    Importing models
+        After registring apps
+        django import every model from models.py file
+        This is why migrations know every model in our project
+    
+    read()
+        after models are loaded Django calls AppConfig.read() it is present in apps.py file
+        This is where people usually register:
+            signals
+            startup hooks
+            application initialization
+
+    URL configuration
+        Now Django loads ROOT_URLCONF from settings
+        it imports urls.py file and builds the URL resolver.
+
+    Middleware
+        Each middleware class is instantiated once during startup.
+        On each request, Django reuses these middleware objects rather than creating new instances
+
+    Ready to accept requests
+
+    Full flow
+        settings_loaded -> Apps Registered -> Models Registered -> Signals connected -> Url resolver Ready -> Middleware Ready -> server starts
+    
+    Visual flow
+        python manage.py runserver -> manage.py -> DJANGO_SETTINGS_MODULE -> execute_from_command_line() -> django_setup() -> Load Settings -> Read Installed_apps -> Create AppConfig Objects -> Build App registry -> Register models -> Call ready() -> Load urls -> Load middleware -> Server ready
+
+    Interview answer:
+        When Django starts, manage.py sets the DJANGO_SETTINGS_MODULE environment variable and calls execute_from_command_line(), which triggers django.setup(). Django imports settings.py, creates the global settings object, reads INSTALLED_APPS, and creates an AppConfig for each application. It then builds the App Registry, imports and registers all models, and calls each application's ready() method, which is commonly used to register signals. After that, Django loads the URL configuration and initializes the middleware stack. Once initialization is complete, the application server begins accepting HTTP requests.
+
+#### What is the App Registry?
+    the App Registry is Django's internal registry that keeps track of every installed application and every registered model. It is built during django.setup() after reading INSTALLED_APPS. Django uses it for model lookups, migrations, admin registration, signal initialization, and other framework features.
+
+#### What happens if an app isn't in INSTALLED_APPS?
+    Models won't be registered.
+    Migrations won't detect them.
+    Admin won't discover them.
+    Signals in ready() won't run.
+    Django won't treat it as part of the project.
+
+#### When is ready() called?
+    Once, during application initialization, after all installed apps and models have been loaded into the App Registry.
+
+#### Should you execute database queries inside ready()?
+    No, Because ready() runs during application startup. Database access there can:
+        Slow startup.
+        Cause issues during management commands like makemigrations or collectstatic.
+        Execute multiple times in some development or deployment scenarios (for example, due to the development server's auto-reloader or multiple worker processes).
+
+#### Suppose your project contains an app called payments, but you forget to add it to INSTALLED_APPS.
+    Since Django builds the App Registry using only the applications listed in INSTALLED_APPS, an app that is omitted is treated as if it doesn't belong to the project. Its AppConfig is never created, ready() is never executed, and any signals registered there won't be connected. Django won't import and register its models, so makemigrations won't generate migrations for them, and their database tables won't be created. The app's admin.py won't be discovered, so its models won't appear in the Django admin. Additionally, lookups such as apps.get_model("payments", "Payment") will fail because the app isn't present in the App Registry.
+
+#### "If INSTALLED_APPS is loaded only once during startup, how can Django execute from django.conf import settings anywhere in the project without re-reading settings.py every time?"
+    Django imports settings.py only once during initialization. It creates a global LazySettings object that wraps the actual settings. When code imports from django.conf import settings, it receives a reference to this shared object rather than re-importing settings.py. This avoids repeated imports, improves performance, and provides a single source of configuration throughout the application's lifetime.
+
+### why the response middleware executes in the reverse order?
+    MIDDLEWARE = [
+        "django.middleware.security.SecurityMiddleware",
+        "django.contrib.sessions.middleware.SessionMiddleware",
+        "django.contrib.auth.middleware.AuthenticationMiddleware",
+        "myapp.middleware.CustomMiddleware",
+    ]
+    Explain exactly in what order:
+        The request passes through the middleware.
+        The view is executed.
+        The response passes back through the middleware.
+
+
+    Interview answer:
+    Django middleware behaves like nested function calls. During the request phase, middleware executes in the order listed in MIDDLEWARE, from top to bottom. Each middleware performs its pre-processing and then calls get_response(request) to pass control to the next middleware. Once the view returns a response, the call stack unwinds, so the code after get_response(request) executes in reverse order, from the last middleware back to the first. This reverse execution allows each middleware to wrap the request/response cycle, similar to entering and exiting nested function calls or opening and closing nested boxes.
+
+#### Why does AuthenticationMiddleware come after SessionMiddleware?
+    AuthenticationMiddleware checks request.user that needs request.session it has been created by sessionmiddleware
 
     
 
