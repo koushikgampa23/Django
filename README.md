@@ -2122,7 +2122,110 @@
     The N+1 query problem occurs when an application first fetches a collection of objects with one query and then executes an additional query for each object to retrieve related data. For example, fetching 10 OTT platforms and then accessing platform.movies.all() for each platform results in 11 queries. select_related() solves this for single-valued relationships such as ForeignKey and OneToOneField by performing an SQL JOIN and retrieving all required data in a single query. prefetch_related() is designed for ManyToMany and reverse ForeignKey relationships. It executes separate queries for the parent and related objects, then efficiently combines them in Python, avoiding the N+1 problem while preventing the row duplication that large SQL JOINs could produce.
 
 #### What are F() expressions? Why would you use them instead of reading a value, modifying it in Python, and saving it back?
+    F() expressions in Django allow us to refer to the value of a model field directly in the database and perform operations on it without first fetching the value into Python memory. This lets the database do the computation, reducing data transfer, improving performance, and avoiding race conditions in many update scenarios.
+
+    Example 3 as good info
+
+    Example 1:
+    I wanted to update +1 to the exisiting value
+    With out F:    
+        product = Product.objects.get(id=1)
+        product.stock += 1
+        product.save()
+    Internally:
+        1.Fetch stock from db
+        2.Load into python
+        3.Add 1
+        4.Update value in db
     
+    With F:
+        product = Product.objects.get(id=1).update(stock=F("stock")+1)
+    Internally:
+        1.Directly updates stock + 1 value in db without fetching stock from db
+
+    Sql query it does:
+        UPDATE product
+        SET stock = stock + 1
+        WHERE id = 1;
+    
+    Example 2:
+    I need to perform profit calculation i dont want to fetch expense, amount and difference and get profit
+
+    products = Product.objects.annotate(profit=F("expense")-F("amount"))
+    for product in products:
+        print(product.profit)
+    
+    Sql:
+        SELECT amount, expenditure,
+            amount - expenditure AS profit
+        FROM product;
+    
+    Example 3:
+        If two concurrent users are updating the same stock by +1, it can create a race condition.
+
+        Without F():
+                product = Product.objects.get(id=1)
+                product.stock += 1
+                product.save()
+
+            User 1:
+                Fetches stock = 10
+                Adds 1 -> 11
+
+            User 2:
+                Fetches stock = 10
+                Adds 1 -> 11
+
+            User 1 saves -> stock = 11
+            User 2 saves -> stock = 11
+
+            Final value = 11 instead of 12 (Lost Update)
+
+        With F():
+                product = Product.objects.get(id=1)
+                product.stock = F("stock") + 1
+                product.save()
+            Note:
+                The object is still fetched because of get().
+                However, the increment is not calculated in Python.
+                Django sends SQL like:
+                    UPDATE product
+                    SET stock = stock + 1
+                    WHERE id = 1;
+                The database reads the current value and increments it.
+            
+            User 1:
+            UPDATE product SET stock = stock + 1;
+
+            Database:
+            10 -> 11
+
+            User 2:
+            UPDATE product SET stock = stock + 1;
+
+            Database:
+            11 -> 12
+    
+    print(product.stock) # <CombinedExpression: F(stock) + Value(1)>
+    product.refresh_from_db() 
+    print(product.stock) # Django doesn't know what value the database computed until it reloads the object.
+
+#### .values() vs why need serializer
+    I have get method that retrives all the data to user
+        products = Product.objects.values("id","name")
+        return Response(products)
+    Using serializer:
+        products = Product.objects.all()
+        serializer = ProductSerializer(products, many=True) #fields = ["id","name"]
+        return Response(serializer.data)
+    Both give same output
+    Find difference here:
+        "values() returns dictionaries directly from the database and is more efficient for simple read-only queries. However, serializers provide a consistent API representation, support validation, computed fields, nested relationships, custom formatting, and reusable serialization logic. For production REST APIs, serializers are generally preferred, while values() is useful for lightweight or performance-sensitive read-only endpoints."
+    
+    For a simple read-only endpoint, QuerySet.values() can be more efficient because Django returns dictionaries directly instead of first creating model instances and then having a serializer convert those model instances into Python dictionaries before rendering them as JSON. This avoids both model instantiation and serializer overhead.
+
+
+
 
 
 
