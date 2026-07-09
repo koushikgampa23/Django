@@ -2109,8 +2109,20 @@
 #### Why does AuthenticationMiddleware come after SessionMiddleware?
     AuthenticationMiddleware checks request.user that needs request.session it has been created by sessionmiddleware
 
-    
+### URL resolver questions?
+#### How does Django's URL Resolver work internally?
+    Django builds the URL configuration during application startup by converting entries in urlpatterns into URLPattern and URLResolver objects. When a request arrives, the URL resolver checks the patterns sequentially from top to bottom until it finds the first match. If a pattern uses include(), Django delegates the remaining portion of the URL to another URL resolver. For path(), Django uses path converters such as int or slug to validate and convert URL parameters before passing them to the view. re_path() allows regular-expression-based matching for more complex patterns. Once a matching pattern is found, Django dispatches the request to the associated view.
 
+
+#### Why does Django have both path() and re_path()? When would you choose one over the other?
+    path() is the preferred way to define URL patterns because it is simple, readable, and supports built-in path converters like int, slug, uuid, and path. It covers most routing needs in Django applications. re_path() uses regular expressions and is intended for cases where URL matching requires patterns that cannot be expressed with path() converters. Since regex patterns are more complex and harder to maintain, I use path() whenever possible and choose re_path() only for advanced matching requirements.
+
+### ORM question
+#### What is the N+1 query problem? Explain it with an example, and how do select_related() and prefetch_related() solve it?
+    The N+1 query problem occurs when an application first fetches a collection of objects with one query and then executes an additional query for each object to retrieve related data. For example, fetching 10 OTT platforms and then accessing platform.movies.all() for each platform results in 11 queries. select_related() solves this for single-valued relationships such as ForeignKey and OneToOneField by performing an SQL JOIN and retrieving all required data in a single query. prefetch_related() is designed for ManyToMany and reverse ForeignKey relationships. It executes separate queries for the parent and related objects, then efficiently combines them in Python, avoiding the N+1 problem while preventing the row duplication that large SQL JOINs could produce.
+
+#### What are F() expressions? Why would you use them instead of reading a value, modifying it in Python, and saving it back?
+    
 
 
 
