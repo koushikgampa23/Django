@@ -2330,8 +2330,68 @@
         )
         print(products.filter(is_cart_big="Good Name").values())
 
+#### Subqueries
+    A subquery is a complete select command which is used within another select, update or delete command. The only difference to a simple SELECT is, that is enclosed in parenthesis
+    
+    Example:
+        select * from person where weight >= (select AVG(weight) from person);
+                                                    This is subquery
+    
+    Implement in django
+    Without subquery
+        I wanted to get the products that have the highest price
+            max_price = Product.objects.aggregate(max=Max("price"))["max"] #Db call
+            max_value_products = Product.objects.filter(price=max_price) #No db call
+            print(max_value_products.values()) # Db call
+            # 2 queries happened here
+        Note:
+            Aggregate makes a immediate db call
+            where as remaning query sets are lazy loading when ever i call max_value_products then only the db call happens
+    Using subquery
+            max_price = Product.objects.order_by("-price").values("price")[:1]
+            products = Product.objects.filter(price=Subquery(max_price))
+            print(products) # Db call happens here
+        Here iam not calling max_price since it is inside subquery
 
-        
+    # Attach last sale for the each restaurent
+        restaurents = Restaurents.objects.all()
+        sales = Sales.objects.filter(restaurent=OuterRef("pk")) # OuterRef("pk") refers to restaurent pk
+        restaurents = restaurents.annotate(
+            latest_sale = SubQuery(sales.values("sales")[:1]) #To get latest sale <QuerySet[{"sale":20}]>
+        )
+        for restaurent in restaurents:
+            print(restaurent.latest_sale) # The db call happens only here all the remaining are lazy querysets    
+
+    Instead of Subqueries we can even use Exists
+    # Filter all the resturants that have sales with income > 85
+        restaurents = Restaurents.objects.filter(
+            Exists(Sales.object.filter(restaurent=OuterRef("pk"), income__gt>85))
+        )
+        Here OuterRef("pk") refers to the outer primary key that is restaurent pk and also filter with income__gt>85
+
+#### Atomic and select_for_update
+    To avoid race conditions
+
+    from django.db import transaction
+
+    with transaction.atomic():
+        product = Product.objects.select_for_update().get(id=1)
+        product.stock += 1
+        product.save()
+    
+    atomic() creates the transaction.
+    select_for_update() locks the row until the transaction completes.
+
+    transaction.atomic() groups multiple database operations into a single transaction. If all operations succeed, Django commits the transaction. If any operation fails, Django rolls back all changes, ensuring the database remains consistent. It is commonly used when multiple related writes must either all succeed or all fail, such as fund transfers, order processing, or inventory updates.
+
+    select_for_update() is a Django QuerySet method that acquires a row-level lock on the selected rows within a database transaction. Other transactions cannot modify or acquire conflicting locks on those rows until the current transaction commits or rolls back. It is used to prevent race conditions during concurrent updates.
+
+    Important points
+        Must be used inside transaction.atomic().
+        Acquires row-level locks, not table-level locks.
+        Prevents concurrent updates to the locked rows.
+        Commonly used in banking, inventory management, ticket booking, and order processing systems.
+
            
             
 
