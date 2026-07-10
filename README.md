@@ -603,6 +603,13 @@
             roof.pitch = F("pitch") + 2
             roof.save()
             RoofMaster.objects.all().values()
+    Allows me to perform and/or/negation filtering
+        products = Product.objects.filter(
+            Q(name__startswith="c") | Q(description__startswith="c")
+        )
+        products = Product.objects.filter(
+            Q(name__startswith="c") & Q(description__startswith="c")
+        )
 
 ## ModelViewSet
     ModelViewSet simplifiles the boiler plate code by providing all the CRUD operations in it and it handles the routing as well
@@ -2224,9 +2231,104 @@
     
     For a simple read-only endpoint, QuerySet.values() can be more efficient because Django returns dictionaries directly instead of first creating model instances and then having a serializer convert those model instances into Python dictionaries before rendering them as JSON. This avoids both model instantiation and serializer overhead.
 
+#### Aggregates
+    Aggregate performs a calculation over the entire queryset and returns a single dictionary containing the result. It does not return model instances.
 
+    Lets see count aggregation
+    Count:
+        print(Product.objects.count())
+    Using aggregate
+        from django.db.models import Count
+        print(Product.objects.aggregate(total=Count("id")))
+        {total: 4}
+    One more aggregation to get avg of abc product
+        print(Product.objects.filter(name="abc").aggregate(avg=Avg("price")))
+    Perform min, max, avg, sum
+        Product.objects.aggregate(
+            min=Min("price"), max=Max("price"), avg=Avg("price"), sum=Sum("price")
+        )
+        {min:4, max: 23, avg:23, sum: 98}
 
+#### Annotation
+    annotate() adds one or more computed fields to each object in a queryset. The computed value can be an aggregate, a database function, or an expression.
 
+    Add len of name to every model field in the queryset
+        from django.db.models.functions import Length
+        products = Product.objects.annotate(len_name=Length("name"))
+    We can double the stock and use order by as well
+        Product.objects.annotate(profit=F("stock") * 2).order_by("-profit").values()
+
+#### Aggregate vs annotate
+    Aggregate:
+        Computes a value over the entire queryset (or filtered queryset).
+        Returns a dictionary.
+        Used for summaries like total, average, min, max, count.
+    Annotate:
+        Computes a value for each object in the queryset.
+        Returns a queryset of model instances with extra fields.
+        Used to enrich each row with calculated values, aggregates, or database functions.
+
+#### COALESCE
+    It is used to handle None values
+    Consider i have nick_name field that is null=True, blank=True
+    If i perform this operation
+        products = Product.objects.annotate(len_name=Length(F("nick_name")))
+        it gives something like this
+        [
+            {'id': 3, 'name': 'cart', 'description': 'cartitem', 'price': Decimal('23.00'), 'stock': 1, 'image': '', 'nick_name': None, 'len_name': None},
+            {'id': 8, 'name': 'xyz1', 'description': 'hello', 'price': Decimal('12.00'), 'stock': 20, 'image': '', 'nick_name': 'xy', 'len_name': 2}
+        ]
+    If we use coalesce function the function chooses secondary value if the first value is None
+    in this way we can elimnate the None values
+        products = Product.objects.annotate(len_name=Coalesce(Length(F("nick_name")), 0))
+        if len_name is None then it becomes 0
+    I need new nick column that contains nick name if none get name
+        Product.objects.annotate(new_nick=Coalesce(F("nick_name"), F("name")))
+    
+    Handling Null values
+        Order:
+            Place null values at the first during order by
+                Product.objects.all().order_by(F("nick_name").asc(nulls_first=True))
+            Place null values at the last during order by
+                products = Product.objects.all().order_by(F("nick_name").asc(nulls_last=True))
+        Remove Null values:
+            Product.objects.filter(nick_name__isnull=False)
+        OK to have Null values:
+            Product.objects.filter(nick_name__isnull=True)
+    
+    I wanted to sum all length of nick names
+        products = Product.objects.annotate(len_name=Coalesce(Length(F("nick_name")), 0))
+        total = products.aggregate(total_sum=Sum("len_name"))
+        print(total)
+
+#### Case and When conditional Statements
+    When statement acts as if/else statement "then" value referred to if statement and "default" for else statement
+        products = Product.objects.annotate(len_name=Length("name"))
+        products = products.annotate(
+            is_cart_big=Case(When(len_name__gte=4, then=True), default=False)
+        )
+        print(products.filter(is_cart_big=True).values())
+
+    we can write multiple when statements
+        products = Product.objects.annotate(len_name=Length("name"))
+        products = products.annotate(
+            is_cart_big=Case(
+                When(len_name__gte=4, then=Value("Good Name")),
+                When(len_name__gte=3, then=Value("Average Name")),
+                default=Value("Poor Name"),
+            )
+        )
+        print(products.filter(is_cart_big="Good Name").values())
+
+    we can even use Q objects also
+        products = Product.objects.annotate(len_name=Length("name"))
+        products = products.annotate(
+            is_cart_big=Case(
+                When(Q(len_name__gte=4) | Q(len_name__gte=3), then=Value("Good Name")),
+                default=Value("Poor Name"),
+            )
+        )
+        print(products.filter(is_cart_big="Good Name").values())
 
 
         
